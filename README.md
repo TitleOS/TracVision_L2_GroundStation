@@ -8,13 +8,11 @@ A collection of Python utility scripts and a PoC script for microwave imaging th
 * target_geosync.py: By specifying a satellite's NORAD ID, your latitude and longitude, this script can automatically calculate the azimuth and elevation of the satellite from your current location, using this data to automatically point the dish at it's location.
 * More To Come
 
+### How to:
+* target_geosync.py: `python target_geosync.py --sat_name GOES18 --latitude 34.68462 --longitude -101.77635` OR `python target_geosync.py --norad_id 41866 --latitude 34.68462 --longitude -101.77635 --verbose True --debug True`
+
 
 ### Notes
-Be slow using target_geosync.py, currently the script redownloads the NORAD TLE every run, and multiple rapid runs will result in your IP being temporarily banned from celestrak.org
-```
-403 - Forbidden: Access is denied.
-We have detected excessive downloads for files in the /NORAD/elements directory and access has been temporarily blocked. Access will be automatically restored once the excessive downloads have ceased for 2 hours.
-
-Please note that orbital data files are only checked for updates every 2 hours and most orbital data only updates 2-3 times a day (or less). Please check your scripts to ensure they are operating properly.
-```
+target_geosync.py caches TLE data to a local file called `tle_cache.json` for 2 hours. This is more than sufficient for tracking GeoSync satellites, however if you would like to force a redownload of TLE data early, simply delete tle_cache.json and rerun target_geosync.py. You should be aware that Celestrak is pretty aggressive when it comes to rate-limiting. They themselves recommend only updating TLE data not more than every 2 hours.
+* `54-0195A_TVL2_5.03.pdf` is the original TracVision L2 Owner Manual, which was essential to the creation of these scripts and reverse engineering the serial interface. Specific pages 64-69 cover serial interfacing.
 
