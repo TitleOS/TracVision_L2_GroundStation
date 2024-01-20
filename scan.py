@@ -86,6 +86,7 @@ def write_scan_settings():
     f.write(str(args.end_el) + "\n")
     f.close()
 
+
 def main():
     az_range = args.end_az - args.start_az
     el_range = args.end_el - args.start_el
