@@ -44,8 +44,6 @@ def initialize_serial():
             print(port + "\n")
         exit()
 
-ser = initialize_serial()
-
 def send_command(command, wait_time=1):
     ser.write(command.encode() + '\r\n'.encode()) # Send the command plus a carriage return to the dish over serial.
     time.sleep(wait_time)
@@ -53,8 +51,6 @@ def send_command(command, wait_time=1):
 def initialize_dish():
     send_command('halt', 3) # Wait 3 seconds to break into terminal mode.
     print("Initialized Terminal Mode.")
-    send_command('version', 1)
-    print("Echoed version.")
     send_command('AZ,0000', 5) # Park the dish at azimuth 0 for calibration.
     print("Set azimuth to 0.")
     send_command('EL,100', 5)
@@ -74,10 +70,10 @@ def get_current_signal_strength():
 def write_scan_settings():
     # Write the scan settings to a file.
     f = open(f"scan_settings_{str(current_timestamp)}.txt", "w")
-    f.write("start_az: " + str(args.start_az) + "\n")
-    f.write("end_az: " + str(args.end_az) + "\n")
-    f.write("start_el: " + str(args.start_el) + "\n")
-    f.write("end_el: " + str(args.end_el) + "\n")
+    f.write(str(args.start_az) + "\n")
+    f.write(str(args.end_az) + "\n")
+    f.write(str(args.start_el) + "\n")
+    f.write(str(args.end_el) + "\n")
     f.close()
 
 
@@ -87,7 +83,8 @@ def main():
 
     #Build the Numpy data array to store the scan data.
     sky_data = np.zeros((el_range+1,az_range+1))
-
+    global ser 
+    ser = initialize_serial()
     initialize_dish()
     print("Beginning scan...")
     start_time = time.time() #Start the timer.
@@ -99,6 +96,9 @@ def main():
             print("Set azimuth to " + str(az) + ".")
             signal_strength = get_current_signal_strength() #We have manuevered the dish to the current azimuth and elevation, now get the signal strength.
             print("Current signal strength: " + signal_strength)
-            sky_data[abs(el-args.end-el),abs(az-args.end_az)]=signal_strength #record raw data to array
+            sky_data[abs(el-args.end_el),abs(az-args.end_az)]=signal_strength #record raw data to array
             np.savetxt(f"raw-data-" + current_timestamp +".txt", sky_data) #record raw data to array
     print("Scan complete, took " + str(time.time() - start_time) + " seconds.") #Print the time it took to complete the scan.
+
+if __name__ == "__main__":
+    main()
