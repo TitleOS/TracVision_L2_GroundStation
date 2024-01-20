@@ -17,10 +17,10 @@ az_start=int(scan_params[0])
 az_end=int(scan_params[1])
 el_start=int(scan_params[2])
 el_end=int(scan_params[3])
-resolution=1
 
 cleaned_data = np.delete(sky_data, obj=0, axis=0)
 cleaned_data = np.delete(cleaned_data, obj=0, axis=1)
+#cleaned_data = sky_data
 	
 #set up custom axis labels
 x=np.array([0,(az_end-az_start-1)/2,az_end-az_start-2])
@@ -37,9 +37,9 @@ print('Processing heatmap...')
 
 plt.imshow(cleaned_data, cmap='CMRmap')
 plt.colorbar(location='bottom',label='RF Signal Strength')
-plt.xlabel("Azimuth (dish uses CCW heading)")
+plt.xlabel("Azimuth")
 plt.ylabel("Elevation")
-plt.title("Ku Band Scan")
+plt.title("Ku Band Scan via TracVision L2")
 
 
 

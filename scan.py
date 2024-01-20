@@ -1,4 +1,3 @@
-import os
 import time
 from serial import Serial
 from serial.tools import list_ports
@@ -15,7 +14,6 @@ parser.add_argument('--end_el', metavar='END_EL', type=int, help='the ending ele
 args = parser.parse_args()
 
 current_timestamp = time.strftime("%Y%m%d-%H%M%S")
-
 
 if(args.start_az < 0 or args.start_az > 3599):
     print('Error: start_az must be between 0 and 3599')
@@ -49,8 +47,8 @@ def send_command(command, wait_time=1):
     time.sleep(wait_time)
 
 def initialize_dish():
-    send_command('halt', 3) # Wait 3 seconds to break into terminal mode.
-    print("Initialized Terminal Mode.")
+    init_term_mode()
+    get_current_version()
     send_command('AZ,0000', 5) # Park the dish at azimuth 0 for calibration.
     print("Set azimuth to 0.")
     send_command('EL,100', 5)
@@ -65,7 +63,19 @@ def get_current_signal_strength():
         out += ser.read(1).decode()
     if out != '':
         return out.split('=')[1].split(' ')[1] #Return: Signal Strength = XXXX
+    
+def get_current_version():
+    send_command('VERSION', 1)
+    out = ''
+    time.sleep(1)
+    while ser.inWaiting() > 0:
+        out += ser.read(1).decode()
+    if out != '':
+        return out
 
+def init_term_mode():
+    send_command('halt', 3) # Wait 3 seconds to break into terminal mode.
+    print("Initialized Terminal Mode.")
 
 def write_scan_settings():
     # Write the scan settings to a file.
@@ -76,29 +86,32 @@ def write_scan_settings():
     f.write(str(args.end_el) + "\n")
     f.close()
 
-
 def main():
     az_range = args.end_az - args.start_az
     el_range = args.end_el - args.start_el
 
     #Build the Numpy data array to store the scan data.
     sky_data = np.zeros((el_range+1,az_range+1))
-    global ser 
+
+    global ser
+
     ser = initialize_serial()
     initialize_dish()
+
     print("Beginning scan...")
     start_time = time.time() #Start the timer.
     for el in range(args.start_el, args.end_el, 10): #Break the elevation range into 10 degree increments.
         send_command('EL,' + str(el), 2)
         print("Set elevation to " + str(el) + ".")
-        for az in range(args.start_az, args.end_az, 25): #Break the azimuth range into 25 degree increments.
+        for az in range(args.start_az, args.end_az, 10): #Break the azimuth range into 25 degree increments.
             send_command('AZ,' + str(az), 2)
             print("Set azimuth to " + str(az) + ".")
             signal_strength = get_current_signal_strength() #We have manuevered the dish to the current azimuth and elevation, now get the signal strength.
             print("Current signal strength: " + signal_strength)
-            sky_data[abs(el-args.end_el),abs(az-args.end_az)]=signal_strength #record raw data to array
+            sky_data[abs(el - args.end_el),abs(az - args.end_az)]=signal_strength #record raw data to array
             np.savetxt(f"raw-data-" + current_timestamp +".txt", sky_data) #record raw data to array
     print("Scan complete, took " + str(time.time() - start_time) + " seconds.") #Print the time it took to complete the scan.
+
 
 if __name__ == "__main__":
     main()
