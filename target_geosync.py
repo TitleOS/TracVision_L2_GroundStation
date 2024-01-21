@@ -13,8 +13,6 @@ from satellite_tle import fetch_tle_from_celestrak
 from functools import lru_cache, wraps
 
 
-obs = ephem.Observer()
-
 parser = argparse.ArgumentParser(description='Target GeoSync satellites using the TracVision L2.')
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument('--norad_id', metavar='NORAD', type=str, help='The geosync satellite NORAD ID you would like to target.', default='41866')
@@ -181,7 +179,53 @@ def get_current_signal_strength():
     if out != '':
         if(verbose):
             print("Return: " + out)
-        return out.split('=')[1].split(' ')[1] #Return: Signal Strength = XXXX
+        sig_strength = out.split('=')[1].split(' ')[1] #Return: Signal Strength = XXXX
+        return sig_strength.lstrip('0')
+
+def finetune_sat_lock(az):
+    beginning_az = az
+    beginning_signal_strength = get_current_signal_strength()
+    finetune_list = [beginning_az, beginning_signal_strength]
+    start_range = 0
+    current_range = 0
+    end_range = 5
+
+    while(current_range < end_range):
+        target_az = beginning_az + current_range
+        send_command(f'AZ,{target_az}', 1)
+        target_signal_strength = get_current_signal_strength()
+        finetune_list.append(target_az)
+        finetune_list.append(target_signal_strength)
+        if(args.verbose):
+            print(f"Finetuning: Current range: {current_range} Target Signal Strength: {target_signal_strength}")
+        current_range += 1
+    print("Finetuning: Finished positive half of finetuning, now moving to negative half...")
+
+    current_range = 0
+
+    while(current_range < end_range):
+        target_az = beginning_az - current_range
+        send_command(f'AZ,{target_az}', 1)
+        target_signal_strength = get_current_signal_strength()
+        finetune_list.append(target_az)
+        finetune_list.append(target_signal_strength)
+        if(args.verbose):
+            print(f"Finetuning: Current range: {current_range} Target Signal Strength: {target_signal_strength}")
+        current_range += 1
+    print("Finetuning: Finished negative half of finetuning, checking for better signal strength...")
+
+
+    for s in finetune_list[::2]:
+        if(s > beginning_signal_strength):
+            index = finetune_list.index(s)
+            target_az = finetune_list[index - 1]
+            print(f"Finetuning: Found a better signal strength at Azimuth {target_az}! Original Signal Strength: {beginning_signal_strength} New Signal Strength: {s}")
+            send_command(f'AZ,{target_az}', 1)
+            print(f"Finetuning: Complete! Dish is now pointing at Azimuth {target_az} with a signal strength of {s}.")
+            exit()
+    print("Finetuning: No better signal strength found, returning dish to original position...")
+    send_command(f'AZ,{beginning_az}', 1)
+    print(f"Finetuning: Dish is now at original position of Azimuth {beginning_az} with a signal strength of {beginning_signal_strength}.")
 
 def main():
     global ser
@@ -216,6 +260,7 @@ def main():
             print("Signal strength: " + signal_strength)
             exit()
         else:
+            finetune_sat_lock(corrected_az)
             print("Satellite lock achieved! Enjoy your packets!")
             print("Signal strength: " + signal_strength)
             exit()
