@@ -202,6 +202,7 @@ def finetune_sat_lock(az):
     print("Finetuning: Finished positive half of finetuning, now moving to negative half...")
 
     current_range = 0
+    send_command(f'AZ,{beginning_az}', 1)
 
     while(current_range < end_range):
         target_az = beginning_az - current_range
