@@ -100,6 +100,8 @@ def init_term_mode():
 
 def send_command(command, wait_time=1):
     ser.write(command.encode() + '\r\n'.encode()) # Send the command plus a carriage return to the dish over serial.
+    if(args.verbose):
+        print("Verbose: Sent command: " + command + "\n")
     time.sleep(wait_time)
 
 def initialize_dish():
@@ -222,7 +224,7 @@ def finetune_sat_lock(az):
             target_az = finetune_list[index - 1]
             print(f"Finetuning: Found a better signal strength at Azimuth {target_az}! Original Signal Strength: {beginning_signal_strength} New Signal Strength: {s}")
             send_command(f'AZ,{target_az}', 1)
-            print(f"Finetuning: Complete! Dish is now pointing at Azimuth {target_az} with a signal strength of {s}.")
+            print(f"Finetuning: Complete! Dish is now pointing at Azimuth {target_az} with a signal strength of {s}. This is a {int(s) - int(beginning_signal_strength)}% increase in signal strength.")
             exit()
     print("Finetuning: No better signal strength found, returning dish to original position...")
     send_command(f'AZ,{beginning_az}', 1)
@@ -237,6 +239,7 @@ def main():
     else:
         ser = initialize_serial()
         initialize_dish()
+    
     verbose = args.verbose
     az, el = calculate_dish_orientation()
     command_az = f"{int(float(f'{az * 100:.1f}')):04d}"
@@ -246,10 +249,6 @@ def main():
         temp_num = '0' + temp_num[:-1]
         corrected_az = int(temp_num)
     print(f"Moving dish to Azimuth: {az}°, Elevation: {el:.2f}")
-    if(verbose):
-        print("Sending commands to dish...")
-        print("Sending AZ command: " + f'AZ,{corrected_az}')
-        print("Sending EL command: " + f'EL,{el:.0f}')
     if(args.debug == False):
         send_command(f'AZ,{corrected_az}', 3)
         send_command(f'EL,{el:.0f}', 3)
