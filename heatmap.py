@@ -29,7 +29,7 @@ plt.xticks(x,az_range)
 y=np.array([0,(el_end-el_start-1)/2,el_end-el_start-1])
 el_range=np.array([el_end,(el_start+el_end)/2,el_start])
 plt.yticks(y,el_range)
-	
+
 	
 
 print('Processing heatmap...')

@@ -75,6 +75,7 @@ def get_current_version():
 
 def init_term_mode():
     send_command('halt', 3) # Wait 3 seconds to break into terminal mode.
+    ser.reset_output_buffer() # Clear the output buffer of the boot log.
     print("Initialized Terminal Mode.")
 
 def write_scan_settings():
@@ -85,7 +86,6 @@ def write_scan_settings():
     f.write(str(args.start_el) + "\n")
     f.write(str(args.end_el) + "\n")
     f.close()
-
 
 def main():
     az_range = args.end_az - args.start_az
@@ -102,10 +102,10 @@ def main():
     print("Beginning scan...")
     start_time = time.time() #Start the timer.
     for el in range(args.start_el, args.end_el, 10): #Break the elevation range into 10 degree increments.
-        send_command('EL,' + str(el), 2)
+        send_command('EL,' + str(el), 1)
         print("Set elevation to " + str(el) + ".")
         for az in range(args.start_az, args.end_az, 10): #Break the azimuth range into 25 degree increments.
-            send_command('AZ,' + str(az), 2)
+            send_command('AZ,' + str(az), 1)
             print("Set azimuth to " + str(az) + ".")
             signal_strength = get_current_signal_strength() #We have manuevered the dish to the current azimuth and elevation, now get the signal strength.
             print("Current signal strength: " + signal_strength)

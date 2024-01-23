@@ -147,6 +147,7 @@ def calculate_dish_orientation():
     # Initialize the observer's location
     obs = initialize_observer(args.latitude, args.longitude)
 
+    norad_id = 0
     # Download the TLE data for the satellite
 
     if args.norad_id is None:
@@ -175,9 +176,9 @@ def calculate_dish_orientation():
     return float(f'{azimuth_degrees:.1f}'), normalized_altitude
 
 def get_current_signal_strength():
-    send_command('SIGLEVEL', 1)
+    send_command('SIGLEVEL', 0)
     out = ''
-    time.sleep(1)
+    time.sleep(0.5)
     while ser.inWaiting() > 0:
         out += ser.read(1).decode()
     if out != '':
@@ -234,6 +235,40 @@ def finetune_sat_lock(az):
     send_command(f'AZ,{beginning_az}', 1)
     print(f"Finetuning: Dish is now at original position of Azimuth {beginning_az} with a signal strength of {beginning_signal_strength}.")
 
+def bruteforce_sat_elevation():
+    # Prepare the dish.
+    send_command('EL,100', 1)
+
+    # Define the elevation range to scan, along with a list for storing each elevation's signal strength.
+    start_range = 100
+    end_range = 700
+    current_el = start_range
+    current_signal_strength = get_current_signal_strength()
+    increment_range = 10 # How much to increment the elevation by each time. We need to balance speed with accuracy.
+
+    signal_strength_list = []
+
+    estimated_time = (end_range - start_range) / increment_range * 0.5 * 2 # 0.5 seconds per elevation change, gives us the total number of seconds to scan.
+
+    print(f"Beginning scan of elevation range {start_range} to {end_range} in increments of {increment_range}. This will take approximately {estimated_time} seconds.")
+
+    while(current_el < end_range):
+        send_command(f'EL,{current_el}', 0.5)
+        current_signal_strength = get_current_signal_strength()
+        if(verbose):
+            print(f"Current elevation: {current_el}, Signal strength: {current_signal_strength}")
+        signal_strength_list.append(current_el)
+        signal_strength_list.append(current_signal_strength)
+        current_el += increment_range
+    # Find the highest signal strength in the list.
+    highest_signal_strength = max(signal_strength_list[1::2])
+    elevation_index = signal_strength_list.index(highest_signal_strength) - 1
+    elevation = signal_strength_list[elevation_index]
+
+    # Move the dish to the elevation with the highest signal strength.
+    send_command(f'EL,{elevation}', 1)
+    print(f"Scan complete! The highest signal strength was {highest_signal_strength} at elevation {elevation}. The dish is now pointing at elevation {elevation}.")
+        
 def main():
     global ser
     global verbose
@@ -256,7 +291,8 @@ def main():
     print(f"Moving dish to Azimuth: {az}°, Elevation: {el:.2f}")
     if(args.debug == False):
         send_command(f'AZ,{corrected_az}', 3)
-        send_command(f'EL,{el:.0f}', 3)
+        #send_command(f'EL,{el:.0f}', 3)
+        bruteforce_sat_elevation()
     print("Dish is now pointing at specified coordinates.")
     if(args.debug == False):
         signal_strength = get_current_signal_strength()
