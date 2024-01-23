@@ -21,6 +21,7 @@ parser.add_argument('--port', metavar='PORT', type=str, help='the serial port to
 parser.add_argument('--latitude', metavar='LAT', type=float, help='Your present latitude', default='36.0')
 parser.add_argument('--longitude', metavar='LONG', type=float, help='Your present longitude', default='-55.0')
 parser.add_argument('--verbose', metavar='VERBOSE', type=bool, help='Enable verbose output', default=False)
+parser.add_argument('--finetune', metavar='FINETUNE', type=bool, help='Enable finetuning, which will attempt to find a better signal strength after locking on to the satellite.', default=False)
 parser.add_argument('--debug', metavar='DEBUG', type=bool, help='Enable debug mode, which does not send any commands nor opens the serial connection.', default=False)
 
 args = parser.parse_args()
@@ -96,6 +97,7 @@ def initialize_serial():
 
 def init_term_mode():
     send_command('halt', 3) # Wait 3 seconds to break into terminal mode.
+    ser.reset_output_buffer() # Clear the output buffer of the boot log.
     print("Initialized Terminal Mode.")
 
 def send_command(command, wait_time=1):
@@ -186,6 +188,8 @@ def get_current_signal_strength():
 
 def finetune_sat_lock(az):
     beginning_az = az
+    
+    
     beginning_signal_strength = get_current_signal_strength()
     finetune_list = [beginning_az, beginning_signal_strength]
     start_range = 0
@@ -241,10 +245,11 @@ def main():
         initialize_dish()
     
     verbose = args.verbose
+    should_finetune = args.finetune
     az, el = calculate_dish_orientation()
     command_az = f"{int(float(f'{az * 100:.1f}')):04d}"
     corrected_az = move_zero(command_az)
-    if(len(str(corrected_az)) < 4 and str(corrected_az).startswith('0')):
+    if(len(str(corrected_az)) < 4 and str(corrected_az).startswith('0')): # Move the leading zero to the decimal point if necessary
         temp_num = str(corrected_az)
         temp_num = '0' + temp_num[:-1]
         corrected_az = int(temp_num)
@@ -255,12 +260,13 @@ def main():
     print("Dish is now pointing at specified coordinates.")
     if(args.debug == False):
         signal_strength = get_current_signal_strength()
-        if(int(signal_strength) < 25): #Anything lower is backwards noise
+        if(int(signal_strength) < 25): #Anything lower is background noise
             print("No satellite signal detected :(, please check your dish's orientation and try again.")
             print("Signal strength: " + signal_strength)
             exit()
         else:
-            finetune_sat_lock(corrected_az)
+            if(should_finetune):
+                finetune_sat_lock(corrected_az)
             print("Satellite lock achieved! Enjoy your packets!")
             print("Signal strength: " + signal_strength)
             exit()
