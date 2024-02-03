@@ -49,16 +49,16 @@ def send_command(command, wait_time=1):
 def initialize_dish():
     init_term_mode()
     get_current_version()
-    send_command('AZ,0000', 5) # Park the dish at azimuth 0 for calibration.
+    send_command('AZ,0000', 3) # Park the dish at azimuth 0 for calibration.
     print("Set azimuth to 0.")
-    send_command('EL,100', 5)
+    send_command('EL,100', 3)
     print("Set elevation to 100.") # Park the dish at elevation 100 (Lowest) for calibration.
     print("Dish orientation setup completed.")
 
 def get_current_signal_strength():
-    send_command('SIGLEVEL', 1)
+    send_command('SIGLEVEL', 0)
     out = ''
-    time.sleep(1)
+    time.sleep(0.5)
     while ser.inWaiting() > 0:
         out += ser.read(1).decode()
     if out != '':
@@ -102,10 +102,10 @@ def main():
     print("Beginning scan...")
     start_time = time.time() #Start the timer.
     for el in range(args.start_el, args.end_el, 10): #Break the elevation range into 10 degree increments.
-        send_command('EL,' + str(el), 1)
+        send_command('EL,' + str(el), 0.5)
         print("Set elevation to " + str(el) + ".")
         for az in range(args.start_az, args.end_az, 10): #Break the azimuth range into 25 degree increments.
-            send_command('AZ,' + str(az), 1)
+            send_command('AZ,' + str(az), 0.5)
             print("Set azimuth to " + str(az) + ".")
             signal_strength = get_current_signal_strength() #We have manuevered the dish to the current azimuth and elevation, now get the signal strength.
             print("Current signal strength: " + signal_strength)

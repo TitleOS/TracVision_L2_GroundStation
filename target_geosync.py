@@ -22,6 +22,7 @@ parser.add_argument('--latitude', metavar='LAT', type=float, help='Your present 
 parser.add_argument('--longitude', metavar='LONG', type=float, help='Your present longitude', default='-55.0')
 parser.add_argument('--verbose', metavar='VERBOSE', type=bool, help='Enable verbose output', default=False)
 parser.add_argument('--finetune', metavar='FINETUNE', type=bool, help='Enable finetuning, which will attempt to find a better signal strength after locking on to the satellite.', default=False)
+parser.add_argument('--track', metavar='TRACK', type=bool, help='Enable tracking mode, which will attempt to track the satellite and adjust the dish orientation as needed. Used for non-geosync targets.', default=False)
 parser.add_argument('--debug', metavar='DEBUG', type=bool, help='Enable debug mode, which does not send any commands nor opens the serial connection.', default=False)
 
 args = parser.parse_args()
@@ -146,13 +147,12 @@ def get_satellite_position(tle_data, observer):
 def calculate_dish_orientation():
     # Initialize the observer's location
     obs = initialize_observer(args.latitude, args.longitude)
+    norad_id = 00000
 
-    norad_id = 0
-    # Download the TLE data for the satellite
-
+    # Use the provided NORAD ID or satellite name to fetch the TLE data
     if args.norad_id is None:
         norad_id = get_norad_id(args.sat_name)
-    elif args.sat_name is None:
+    else:
         norad_id = args.norad_id
 
     tle_data = download_tle(norad_id)
@@ -267,8 +267,53 @@ def bruteforce_sat_elevation():
 
     # Move the dish to the elevation with the highest signal strength.
     send_command(f'EL,{elevation}', 1)
-    print(f"Scan complete! The highest signal strength was {highest_signal_strength} at elevation {elevation}. The dish is now pointing at elevation {elevation}.")
+    print(f"Elevation Scan complete! The highest signal strength was {highest_signal_strength} at elevation {elevation}. The dish is now pointing at elevation {elevation}.")
         
+
+def track_satellite():
+    # Initial signal strength
+    initial_signal_strength = get_current_signal_strength()
+
+    # Small adjustments to azimuth and elevation
+    az_adjustment = 36
+    el_adjustment = 5
+
+    while True:
+
+        if(KeyboardInterrupt):
+            print("Exiting tracking mode...")
+            break
+
+        
+        # Get current azimuth and elevation
+        az, el = calculate_dish_orientation()
+
+        # Try adjusting azimuth and elevation slightly
+        send_command(f'AZ,{az + az_adjustment}', 1)
+        send_command(f'EL,{el + el_adjustment}', 1)
+
+        # Get new signal strength
+        new_signal_strength = get_current_signal_strength()
+
+        # If signal strength improved, keep the new orientation
+        if new_signal_strength > initial_signal_strength:
+            initial_signal_strength = new_signal_strength
+        else:
+            # If not, revert to the old orientation and try the opposite direction
+            send_command(f'AZ,{az - az_adjustment}', 0.3)
+            send_command(f'EL,{el - el_adjustment}', 0.3)
+
+            # Get new signal strength
+            new_signal_strength = get_current_signal_strength()
+
+            # If signal strength improved, keep the new orientation
+            if new_signal_strength > initial_signal_strength:
+                initial_signal_strength = new_signal_strength
+            else:
+                # If not, revert to the old orientation
+                send_command(f'AZ,{az}', 0.3)
+                send_command(f'EL,{el}', 0.3)
+
 def main():
     global ser
     global verbose
@@ -284,7 +329,7 @@ def main():
     az, el = calculate_dish_orientation()
     command_az = f"{int(float(f'{az * 100:.1f}')):04d}"
     corrected_az = move_zero(command_az)
-    if(len(str(corrected_az)) < 4 and str(corrected_az).startswith('0')): # Move the leading zero to the decimal point if necessary
+    if(len(str(corrected_az)) == 4 and str(corrected_az).startswith('0')): # Move the leading zero to the decimal point if necessary
         temp_num = str(corrected_az)
         temp_num = '0' + temp_num[:-1]
         corrected_az = int(temp_num)
@@ -300,12 +345,14 @@ def main():
             print("No satellite signal detected :(, please check your dish's orientation and try again.")
             print("Signal strength: " + signal_strength)
             exit()
-        else:
-            if(should_finetune):
-                finetune_sat_lock(corrected_az)
+        elif (should_finetune):
+            finetune_sat_lock(corrected_az)
             print("Satellite lock achieved! Enjoy your packets!")
             print("Signal strength: " + signal_strength)
             exit()
+        elif (args.track == True):
+            track_satellite()
+                
     else:
         print(f"Debug: az: {az}, el: {el} el_formatted: {el:.0f}, corrected_az: {corrected_az} command_az: {command_az}")
 
