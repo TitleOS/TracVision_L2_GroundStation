@@ -270,27 +270,43 @@ def bruteforce_sat_elevation():
     print(f"Elevation Scan complete! The highest signal strength was {highest_signal_strength} at elevation {elevation}. The dish is now pointing at elevation {elevation}.")
         
 
-def track_satellite():
+def track_satellite(az, el):
     # Initial signal strength
     initial_signal_strength = get_current_signal_strength()
 
     # Small adjustments to azimuth and elevation
-    az_adjustment = 36
+    az_adjustment = 10
     el_adjustment = 5
+
+    current_az = az
+    current_el = el
 
     while True:
 
+        if(az > 360):
+            print("Azimuth is greater than 360, meaning the satellite has moved out of view. Exiting tracking mode...")
+            break
+        if(el > 700):
+            print("Elevation is greater than 700, meaning the satellite has moved out of view. Exiting tracking mode...")
+            break
+        if(el < 100):
+            print("Elevation is less than 100, meaning the satellite has moved out of view. Exiting tracking mode...")
+            break
+        if(az < 0):
+            print("Azimuth is less than 0, meaning the satellite has moved out of view. Exiting tracking mode...")
+            break
+
+        
         if(KeyboardInterrupt):
             print("Exiting tracking mode...")
             break
 
-        
         # Get current azimuth and elevation
-        az, el = calculate_dish_orientation()
+        az, el = current_az, current_el
 
         # Try adjusting azimuth and elevation slightly
-        send_command(f'AZ,{az + az_adjustment}', 1)
-        send_command(f'EL,{el + el_adjustment}', 1)
+        send_command(f'AZ,{az + az_adjustment}', 0.3)
+        send_command(f'EL,{el + el_adjustment}', 0.3)
 
         # Get new signal strength
         new_signal_strength = get_current_signal_strength()
@@ -298,6 +314,8 @@ def track_satellite():
         # If signal strength improved, keep the new orientation
         if new_signal_strength > initial_signal_strength:
             initial_signal_strength = new_signal_strength
+            current_az = az + az_adjustment
+            current_el = el + el_adjustment
         else:
             # If not, revert to the old orientation and try the opposite direction
             send_command(f'AZ,{az - az_adjustment}', 0.3)
@@ -305,14 +323,16 @@ def track_satellite():
 
             # Get new signal strength
             new_signal_strength = get_current_signal_strength()
+            current_az = az - az_adjustment
+            current_el = el - el_adjustment
 
             # If signal strength improved, keep the new orientation
             if new_signal_strength > initial_signal_strength:
                 initial_signal_strength = new_signal_strength
             else:
                 # If not, revert to the old orientation
-                send_command(f'AZ,{az}', 0.3)
-                send_command(f'EL,{el}', 0.3)
+                send_command(f'AZ,{az}', 3)
+                send_command(f'EL,{el}', 1.5)
 
 def main():
     global ser
@@ -351,7 +371,7 @@ def main():
             print("Signal strength: " + signal_strength)
             exit()
         elif (args.track == True):
-            track_satellite()
+            track_satellite(az=az, el=el)
                 
     else:
         print(f"Debug: az: {az}, el: {el} el_formatted: {el:.0f}, corrected_az: {corrected_az} command_az: {command_az}")
