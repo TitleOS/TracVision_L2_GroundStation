@@ -14,15 +14,19 @@ from functools import lru_cache, wraps
 
 
 parser = argparse.ArgumentParser(description='Target GeoSync satellites using the TracVision L2.')
-group = parser.add_mutually_exclusive_group(required=True)
-group.add_argument('--norad_id', metavar='NORAD', type=str, help='The geosync satellite NORAD ID you would like to target.', default='41866')
-group.add_argument('--sat_name', metavar='SAT_NAME', type=str, help='The name of the geosync satellite you would like to target', default='GOES18')
+
+sat_names_group = parser.add_mutually_exclusive_group(required=True)
+sat_names_group.add_argument('--norad_id', metavar='NORAD', type=str, help='The geosync satellite NORAD ID you would like to target.', default='41866')
+sat_names_group.add_argument('--sat_name', metavar='SAT_NAME', type=str, help='The name of the geosync satellite you would like to target', default='GOES18')
+
 parser.add_argument('--port', metavar='PORT', type=str, help='the serial port to use', default='COM5')
 parser.add_argument('--latitude', metavar='LAT', type=float, help='Your present latitude', default='36.0')
 parser.add_argument('--longitude', metavar='LONG', type=float, help='Your present longitude', default='-55.0')
 parser.add_argument('--verbose', metavar='VERBOSE', type=bool, help='Enable verbose output', default=False)
-parser.add_argument('--finetune', metavar='FINETUNE', type=bool, help='Enable finetuning, which will attempt to find a better signal strength after locking on to the satellite.', default=False)
-parser.add_argument('--track', metavar='TRACK', type=bool, help='Enable tracking mode, which will attempt to track the satellite and adjust the dish orientation as needed. Used for non-geosync targets.', default=False)
+
+track_group = parser.add_mutually_exclusive_group()
+track_group.add_argument('--finetune', metavar='FINETUNE', type=bool, help='Enable finetuning, which will attempt to find a better signal strength after locking on to the satellite.', default=False)
+track_group.add_argument('--track', metavar='TRACK', type=bool, help='Enable tracking mode, which will attempt to track the satellite and adjust the dish orientation as needed. Used for non-geosync targets.', default=False)
 parser.add_argument('--debug', metavar='DEBUG', type=bool, help='Enable debug mode, which does not send any commands nor opens the serial connection.', default=False)
 
 args = parser.parse_args()
